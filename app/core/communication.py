@@ -1,3 +1,4 @@
+# core/communication.py
 """
 Handles low-level serial communication with the ESP32 device.
 """
@@ -15,7 +16,6 @@ from core.exceptions import (
     CommunicationError, CommandTimeoutError, InvalidResponseError, 
     DeviceDisconnectedError, ProtocolError
 )
-from core.protocol import Protocol
 
 # Initialize module logger
 logger = get_logger(__name__)
@@ -98,15 +98,19 @@ class SerialCommunication:
         if port is None:
             port = self.detect_device_port()
             if port is None:
-                port = settings.get("DEFAULT_PORT")
-                if port is None:
+                # Use DEFAULT_PORT attribute directly
+                if hasattr(settings, "DEFAULT_PORT"):
+                    port = settings.DEFAULT_PORT
+                else:
                     raise CommunicationError("No port specified and auto-detection failed")
         
         if baudrate is None:
-            baudrate = settings.DEFAULT_BAUDRATE
+            # Access DEFAULT_BAUDRATE attribute directly
+            baudrate = getattr(settings, "DEFAULT_BAUDRATE", 115200)
         
         self._port = port
-        timeout = settings.get("SERIAL_TIMEOUT", 1.0)
+        # Access SERIAL_TIMEOUT attribute directly
+        timeout = getattr(settings, "SERIAL_TIMEOUT", 1.0)
         
         logger.debug("Connecting to %s at %d baud", port, baudrate)
         
