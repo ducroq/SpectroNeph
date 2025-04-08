@@ -1,0 +1,41 @@
+# Default AS7341 sensor profile for nephelometer
+
+# Sensor settings
+DEFAULT_INTEGRATION_TIME: 100  # ms
+DEFAULT_GAIN: 5  # 16x gain (value 5 = 16x gain)
+DEFAULT_LED_CURRENT: 10  # mA
+
+# Nephelometer specific settings
+MEASUREMENT_MODE: "single"  # single, continuous, or kinetic
+SUBTRACT_BACKGROUND: true
+ENABLE_AUTO_GAIN: false
+
+# Agglutination detection parameters
+AGGLUTINATION_THRESHOLD: 1.2  # Violet/Red ratio threshold
+AGGLUTINATION_CONFIDENCE_THRESHOLD: 0.7  # Minimum confidence to report agglutination
+
+# Data processing
+ENABLE_MOVING_AVERAGE: true
+MOVING_AVERAGE_WINDOW: 5
+ENABLE_OUTLIER_REJECTION: true
+OUTLIER_THRESHOLD: 3.0  # Standard deviations
+
+# Experiment defaults
+DEFAULT_KINETIC_DURATION: 300  # seconds
+DEFAULT_KINETIC_SAMPLING_RATE: 2.0  # Hz
+DEFAULT_CONTINUOUS_INTERVAL: 5.0  # seconds
+
+# Display settings
+DISPLAY_CHANNELS:
+  - "F1"  # 415nm (Violet)
+  - "F4"  # 515nm (Green)
+  - "F8"  # 680nm (Red)
+  - "Clear"
+PRIMARY_RATIO: "violet_red"  # Main ratio to track for agglutination
+
+# Calibration values
+CALIBRATION_REFERENCE_VALUES:
+  F1: 1000  # Reference value for F1 channel
+  F4: 1000  # Reference value for F4 channel
+  F8: 1000  # Reference value for F8 channel
+  Clear: 5000  # Reference value for Clear channel

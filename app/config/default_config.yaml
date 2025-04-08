@@ -1,0 +1,48 @@
+# Default configuration for AS7341 Nephelometer
+
+# Application settings
+APP_NAME: "AS7341 Nephelometer"
+APP_VERSION: "0.1.0"
+DEBUG: false
+
+# Logging settings
+LOG_DIR: "logs"
+LOG_LEVEL: "INFO"
+LOG_FORMAT: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+LOG_TO_CONSOLE: true
+LOG_TO_FILE: true
+LOG_FORMAT_EXTRAS:
+  - "experiment_id"
+  - "sample_id"
+
+# Hardware settings
+DEFAULT_PORT: null  # Will be auto-detected if null
+DEFAULT_BAUDRATE: 115200
+SERIAL_TIMEOUT: 1.0
+AUTO_CONNECT: true
+CONNECTION_RETRIES: 3
+
+# AS7341 sensor defaults
+DEFAULT_INTEGRATION_TIME: 100  # ms
+DEFAULT_GAIN: 5  # 16x gain (value 5 = 16x)
+DEFAULT_LED_CURRENT: 10  # mA
+
+# Data acquisition settings
+DEFAULT_SAMPLING_RATE: 1.0  # Hz
+MAX_SAMPLING_RATE: 10.0  # Hz
+BUFFER_SIZE: 1000  # samples
+
+# Data processing settings
+ENABLE_BACKGROUND_SUBTRACTION: true
+ENABLE_DARK_CORRECTION: true
+DEFAULT_MOVING_AVERAGE_WINDOW: 5
+
+# UI settings
+PLOT_UPDATE_INTERVAL: 500  # ms
+THEME: "dark"
+MAX_POINTS_DISPLAYED: 1000
+
+# File paths
+DATA_DIR: "data"
+EXPERIMENT_TEMPLATES_DIR: "experiments/templates"
+CONFIG_PROFILES_DIR: "config/profiles"
