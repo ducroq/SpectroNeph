@@ -1,4 +1,3 @@
-# core/communication.py
 """
 Handles low-level serial communication with the ESP32 device.
 """
