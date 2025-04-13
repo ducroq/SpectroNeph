@@ -25,5 +25,6 @@
  void handleStreamStop(const JsonObject &params, JsonObject &response, const JsonObject &command);
  void handleGetStreams(const JsonObject &params, JsonObject &response, const JsonObject &command);
  void handleResetDevice(const JsonObject &params, JsonObject &response, const JsonObject &command);
+ void handleDiagnostics(const JsonObject &params, JsonObject &response, const JsonObject &command);
  
  #endif // COMMANDS_H
