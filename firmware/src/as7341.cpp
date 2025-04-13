@@ -10,34 +10,81 @@ AS7341Driver as7341;
 
 bool AS7341Driver::begin()
 {
-// Initialize I2C if pins are specified
+    // Initialize I2C if pins are specified
 #if defined(I2C_SDA_PIN) && defined(I2C_SCL_PIN) && I2C_SDA_PIN >= 0 && I2C_SCL_PIN >= 0
     Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
 #endif
 
-    // Initialize the sensor
-    if (!as7341.begin())
+    // Set timeout for I2C operations
+    Wire.setTimeOut(1000); // 1 second timeout
+
+    // Try to detect if the sensor is connected by doing a write/read test
+    Wire.beginTransmission(AS7341_I2CADDR_DEFAULT);
+    bool wireOk = (Wire.endTransmission() == 0);
+
+    if (!wireOk)
     {
 #if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 1
-        Serial.println("Could not find AS7341");
+        Serial.println("I2C communication with AS7341 failed - check connections");
 #endif
         initialized = false;
         return false;
     }
 
-// Initialize external LED pin if configured
+    // Initialize the sensor
+    uint8_t retryCount = 0;
+    const uint8_t MAX_RETRIES = 3;
+
+    while (retryCount < MAX_RETRIES)
+    {
+        if (as7341.begin())
+        {
+#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 3
+            Serial.println("AS7341 sensor detected and initialized");
+#endif
+            break;
+        }
+
+        retryCount++;
+#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
+        Serial.print("AS7341 initialization attempt ");
+        Serial.print(retryCount);
+        Serial.print(" of ");
+        Serial.print(MAX_RETRIES);
+        Serial.println(" failed, retrying...");
+#endif
+        delay(100 * retryCount); // Increasing delay for each retry
+    }
+
+    if (retryCount >= MAX_RETRIES)
+    {
+#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 1
+        Serial.println("Could not initialize AS7341 after multiple attempts");
+#endif
+        initialized = false;
+        return false;
+    }
+
+    // Initialize external LED pin if configured
 #if defined(LED_PIN) && LED_PIN >= 0
     pinMode(LED_PIN, OUTPUT);
     digitalWrite(LED_PIN, LOW);
 #endif
 
     // Apply default configuration
-    configure(DEFAULT_GAIN, DEFAULT_ATIME, DEFAULT_LED_CURRENT);
+    bool configSuccess = configure(DEFAULT_GAIN, DEFAULT_ATIME, DEFAULT_LED_CURRENT);
+
+    if (!configSuccess)
+    {
+#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
+        Serial.println("AS7341 initialized with default configuration warning");
+#endif
+    }
 
     initialized = true;
 
 #if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 3
-    Serial.println("AS7341 initialized");
+    Serial.println("AS7341 initialization complete");
 #endif
 
     return true;
