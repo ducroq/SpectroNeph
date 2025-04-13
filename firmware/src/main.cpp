@@ -81,9 +81,13 @@ void loop()
 
 void setupHardware()
 {
-    // Initialize serial first for debug output
+    // Initialize serial with expanded buffer size
+    Serial.setRxBufferSize(SERIAL_RX_SIZE);
+    Serial.setTxBufferSize(SERIAL_TX_SIZE);
     Serial.begin(SERIAL_BAUD_RATE);
     delay(100); // Short delay to allow serial to initialize
+
+    Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
 
 #if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 3
     Serial.println("\n\nAS7341 Nephelometer");

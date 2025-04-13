@@ -10,61 +10,25 @@ AS7341Driver as7341;
 
 bool AS7341Driver::begin()
 {
-    // Initialize I2C if pins are specified
-#if defined(I2C_SDA_PIN) && defined(I2C_SCL_PIN) && I2C_SDA_PIN >= 0 && I2C_SCL_PIN >= 0
-    Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
-#endif
-
-    // Set timeout for I2C operations
-    Wire.setTimeOut(1000); // 1 second timeout
-
-    // Try to detect if the sensor is connected by doing a write/read test
-    Wire.beginTransmission(AS7341_I2CADDR_DEFAULT);
-    bool wireOk = (Wire.endTransmission() == 0);
-
-    if (!wireOk)
+    // Initialize the sensor with existing Wire object
+    // rather than letting it call Wire.begin() internally
+    if (!as7341.begin(AS7341_I2CADDR_DEFAULT, &Wire))
     {
 #if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 1
-        Serial.println("I2C communication with AS7341 failed - check connections");
+        Serial.println("Could not find AS7341");
 #endif
         initialized = false;
         return false;
     }
-
-    // Initialize the sensor
-    uint8_t retryCount = 0;
-    const uint8_t MAX_RETRIES = 3;
-
-    while (retryCount < MAX_RETRIES)
+    else
     {
-        if (as7341.begin())
-        {
 #if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 3
-            Serial.println("AS7341 sensor detected and initialized");
+        Serial.println("AS7341 initialized");
 #endif
-            break;
-        }
 
-        retryCount++;
-#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
-        Serial.print("AS7341 initialization attempt ");
-        Serial.print(retryCount);
-        Serial.print(" of ");
-        Serial.print(MAX_RETRIES);
-        Serial.println(" failed, retrying...");
-#endif
-        delay(100 * retryCount); // Increasing delay for each retry
+        initialized = true;
     }
-
-    if (retryCount >= MAX_RETRIES)
-    {
-#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 1
-        Serial.println("Could not initialize AS7341 after multiple attempts");
-#endif
-        initialized = false;
-        return false;
-    }
-
+    
     // Initialize external LED pin if configured
 #if defined(LED_PIN) && LED_PIN >= 0
     pinMode(LED_PIN, OUTPUT);
@@ -72,20 +36,7 @@ bool AS7341Driver::begin()
 #endif
 
     // Apply default configuration
-    bool configSuccess = configure(DEFAULT_GAIN, DEFAULT_ATIME, DEFAULT_LED_CURRENT);
-
-    if (!configSuccess)
-    {
-#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
-        Serial.println("AS7341 initialized with default configuration warning");
-#endif
-    }
-
-    initialized = true;
-
-#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 3
-    Serial.println("AS7341 initialization complete");
-#endif
+    configure(DEFAULT_GAIN, DEFAULT_ATIME, DEFAULT_LED_CURRENT);
 
     return true;
 }
@@ -114,7 +65,7 @@ bool AS7341Driver::configure(uint8_t gain, uint16_t integrationTime, uint8_t led
     // Validate integration time (must be at least 1ms, and reasonable upper limit)
     const uint16_t MIN_INTEGRATION_TIME = 1;    // 1ms
     const uint16_t MAX_INTEGRATION_TIME = 1000; // 1000ms (1 second)
-    
+
     if (integrationTime < MIN_INTEGRATION_TIME || integrationTime > MAX_INTEGRATION_TIME)
     {
 #if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
@@ -172,7 +123,8 @@ bool AS7341Driver::configure(uint8_t gain, uint16_t integrationTime, uint8_t led
         break;
     }
 
-    if (!as7341.setGain(gainEnum)) {
+    if (!as7341.setGain(gainEnum))
+    {
 #if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
         Serial.println("Failed to set gain");
 #endif
@@ -182,7 +134,8 @@ bool AS7341Driver::configure(uint8_t gain, uint16_t integrationTime, uint8_t led
 
     // Set integration time (ATIME)
     uint16_t atime = integrationTimeToAtime(integrationTime);
-    if (!as7341.setATIME(atime)) {
+    if (!as7341.setATIME(atime))
+    {
 #if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
         Serial.println("Failed to set integration time");
 #endif
@@ -204,7 +157,8 @@ bool AS7341Driver::configure(uint8_t gain, uint16_t integrationTime, uint8_t led
             success = false;
         }
 
-        if (!as7341.setLEDCurrent(actualCurrent)) {
+        if (!as7341.setLEDCurrent(actualCurrent))
+        {
 #if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
             Serial.println("Failed to set LED current");
 #endif
@@ -227,6 +181,20 @@ bool AS7341Driver::configure(uint8_t gain, uint16_t integrationTime, uint8_t led
 
 bool AS7341Driver::readSpectralData(JsonObject &readings)
 {
+
+    static uint8_t recursion_count = 0;
+
+    // Prevent deep recursion
+    if (recursion_count > 1)
+    {
+#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 1
+        Serial.println("Warning: Preventing deep recursion in readSpectralData");
+#endif
+        return false;
+    }
+
+    recursion_count++;
+
     if (!initialized && !begin())
     {
         return false;

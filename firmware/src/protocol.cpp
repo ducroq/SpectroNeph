@@ -11,11 +11,6 @@ Protocol protocol;
 
 bool Protocol::begin()
 {
-    // Initialize serial with expanded buffer size
-    Serial.begin(SERIAL_BAUD_RATE);
-    Serial.setRxBufferSize(SERIAL_RX_SIZE);
-    Serial.setTxBufferSize(SERIAL_TX_SIZE);
-
     // Clear the command buffer
     memset(commandBuffer, 0, JSON_BUFFER_SIZE);
     bufferPos = 0;
