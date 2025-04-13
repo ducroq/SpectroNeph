@@ -121,6 +121,23 @@ private:
                       StatusCode status = StatusCode::SUCCESS);
 
     /**
+     * @brief Send an error response with a string message
+     * 
+     * @param type Response type
+     * @param commandId Command ID to respond to
+     * @param message Error message
+     * @param status Status code
+     * @return true if the response was sent successfully
+     */
+    bool sendErrorMessage(ResponseType type, int commandId, const String &message,
+        StatusCode status = StatusCode::EXECUTION_ERROR) {
+        StaticJsonDocument<JSON_BUFFER_SIZE> doc;
+        JsonVariant variant = doc.to<JsonVariant>();
+        variant.set(message);
+        return sendResponse(type, commandId, variant, status);
+    }                      
+
+    /**
      * @brief Send a JSON document to the host
      *
      * @param doc JSON document to send

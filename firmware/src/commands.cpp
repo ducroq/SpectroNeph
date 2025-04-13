@@ -58,7 +58,8 @@ void handleGetInfo(const JsonObject &params, JsonObject &response, JsonObject &c
     if (as7341.isConnected())
     {
         // Get current configuration
-        as7341.getConfiguration(sensor.createNestedObject("config"));
+        JsonObject config = sensor.createNestedObject("config");
+        as7341.getConfiguration(config);
     }
 }
 
