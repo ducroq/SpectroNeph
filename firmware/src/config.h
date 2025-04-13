@@ -9,7 +9,7 @@
 // Hardware configuration
 #define I2C_SDA_PIN 21 // I2C SDA pin for AS7341
 #define I2C_SCL_PIN 22 // I2C SCL pin for AS7341
-#define LED_PIN 13     // Optional external LED pin (set to -1 if not used)
+#define LED_PIN -1     // Optional external LED pin (set to -1 if not used)
 
 // Serial communication
 #define SERIAL_BAUD_RATE 115200 // Serial baud rate
@@ -37,5 +37,12 @@
 // Debug settings
 #define ENABLE_DEBUG_MESSAGES 1 // Enable debug messages (1=true, 0=false)
 #define LOG_LEVEL 2             // 0=None, 1=Error, 2=Warn, 3=Info, 4=Debug, 5=Verbose
+
+// Power management settings
+#define ENABLE_POWER_SAVING 1          // Enable power saving features (1=true, 0=false)
+#define SLEEP_AFTER_IDLE_MS 60000      // Enter light sleep after 60 seconds of inactivity
+
+// WiFi settings (if applicable)
+// #define ENABLE_WIFI 1               // Enable WiFi functionality (uncomment if needed)
 
 #endif // CONFIG_H

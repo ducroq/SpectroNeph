@@ -10,9 +10,14 @@
 #include "streaming.h"
 #include "config.h"
 #include "esp_task_wdt.h"
+#include "esp_wifi.h"
+#include "esp_sleep.h"
+#include "power_management.h"
 
 // Forward declarations
 void setupHardware();
+
+unsigned long lastActivityTime = 0;
 
 void setup()
 {
@@ -20,12 +25,15 @@ void setup()
     setupHardware();
 
     // Configure watchdog timer (timeout in seconds)
-    const int WDT_TIMEOUT = 30;  // 30 second timeout
-    esp_task_wdt_init(WDT_TIMEOUT, true);  // Enable panic so ESP32 restarts
-    esp_task_wdt_add(NULL);  // Add current thread to WDT watch    
+    const int WDT_TIMEOUT = 30;           // 30 second timeout
+    esp_task_wdt_init(WDT_TIMEOUT, true); // Enable panic so ESP32 restarts
+    esp_task_wdt_add(NULL);               // Add current thread to WDT watch
 
     // Initialize protocol handler
     protocol.begin();
+
+    // Initialize power management
+    powerManagement.begin();
 
     // Register command handlers
     registerCommands();
@@ -57,12 +65,15 @@ void loop()
 {
     // Reset watchdog timer to prevent timeout
     esp_task_wdt_reset();
-        
+
     // Process incoming commands
     protocol.update();
 
     // Update active data streams
     streaming.update();
+
+    // Check if we should enter sleep mode
+    powerManagement.checkSleepConditions();
 
     // Small delay to prevent tight loops
     delay(1);

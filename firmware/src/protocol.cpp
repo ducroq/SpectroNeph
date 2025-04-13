@@ -4,6 +4,7 @@
  */
 
 #include "protocol.h"
+#include "power_management.h"
 
 // Create global protocol instance
 Protocol protocol;
@@ -152,6 +153,9 @@ bool Protocol::commandExists(const String &command) const
 
 void Protocol::processCommand(const JsonObject &command)
 {
+    // Update activity timestamp when a command is received
+    powerManagement.updateActivityTimestamp();
+
     // Extract command fields
     String cmdName = command["cmd"].as<String>();
     int cmdId = command["id"].as<int>();
