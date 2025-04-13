@@ -99,6 +99,37 @@ bool AS7341Driver::configure(uint8_t gain, uint16_t integrationTime, uint8_t led
 
     bool success = true;
 
+    // Validate gain (0-10 are valid values)
+    if (gain > 10)
+    {
+#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
+        Serial.print("Invalid gain value: ");
+        Serial.print(gain);
+        Serial.println(", using default gain");
+#endif
+        gain = DEFAULT_GAIN;
+        success = false;
+    }
+
+    // Validate integration time (must be at least 1ms, and reasonable upper limit)
+    const uint16_t MIN_INTEGRATION_TIME = 1;    // 1ms
+    const uint16_t MAX_INTEGRATION_TIME = 1000; // 1000ms (1 second)
+    
+    if (integrationTime < MIN_INTEGRATION_TIME || integrationTime > MAX_INTEGRATION_TIME)
+    {
+#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
+        Serial.print("Integration time out of range: ");
+        Serial.print(integrationTime);
+        Serial.print(" ms, valid range is ");
+        Serial.print(MIN_INTEGRATION_TIME);
+        Serial.print("-");
+        Serial.print(MAX_INTEGRATION_TIME);
+        Serial.println(" ms, using default value");
+#endif
+        integrationTime = DEFAULT_ATIME;
+        success = false;
+    }
+
     // Set gain
     as7341_gain_t gainEnum;
     switch (gain)
@@ -137,21 +168,26 @@ bool AS7341Driver::configure(uint8_t gain, uint16_t integrationTime, uint8_t led
         gainEnum = AS7341_GAIN_512X;
         break;
     default:
-        gainEnum = AS7341_GAIN_16X;
-#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
-        Serial.print("Invalid gain value: ");
-        Serial.println(gain);
-#endif
-        success = false;
+        gainEnum = AS7341_GAIN_16X; // Should never happen due to validation above
         break;
     }
 
-    as7341.setGain(gainEnum);
+    if (!as7341.setGain(gainEnum)) {
+#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
+        Serial.println("Failed to set gain");
+#endif
+        success = false;
+    }
     currentGain = gain;
 
     // Set integration time (ATIME)
     uint16_t atime = integrationTimeToAtime(integrationTime);
-    as7341.setATIME(atime);
+    if (!as7341.setATIME(atime)) {
+#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
+        Serial.println("Failed to set integration time");
+#endif
+        success = false;
+    }
     currentIntegrationTime = integrationTime;
 
     // Set LED current (if LED is enabled)
@@ -168,7 +204,12 @@ bool AS7341Driver::configure(uint8_t gain, uint16_t integrationTime, uint8_t led
             success = false;
         }
 
-        as7341.setLEDCurrent(actualCurrent);
+        if (!as7341.setLEDCurrent(actualCurrent)) {
+#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 2
+            Serial.println("Failed to set LED current");
+#endif
+            success = false;
+        }
         currentLedCurrent = actualCurrent;
     }
 
