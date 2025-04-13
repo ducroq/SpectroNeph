@@ -9,6 +9,7 @@
 #include "as7341.h"
 #include "streaming.h"
 #include "config.h"
+#include "esp_task_wdt.h"
 
 // Forward declarations
 void setupHardware();
@@ -17,6 +18,11 @@ void setup()
 {
     // Initialize hardware
     setupHardware();
+
+    // Configure watchdog timer (timeout in seconds)
+    const int WDT_TIMEOUT = 30;  // 30 second timeout
+    esp_task_wdt_init(WDT_TIMEOUT, true);  // Enable panic so ESP32 restarts
+    esp_task_wdt_add(NULL);  // Add current thread to WDT watch    
 
     // Initialize protocol handler
     protocol.begin();
@@ -49,6 +55,9 @@ void setup()
 
 void loop()
 {
+    // Reset watchdog timer to prevent timeout
+    esp_task_wdt_reset();
+        
     // Process incoming commands
     protocol.update();
 
