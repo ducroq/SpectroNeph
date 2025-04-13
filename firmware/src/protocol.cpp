@@ -188,9 +188,7 @@ void Protocol::processCommand(const JsonObject &command)
     // Call the command handler
     try
     {
-        // Create a copy of the command object that can be modified
-        JsonObject cmdCopy = command;
-        commandHandlers[cmdName](params, responseData, cmdCopy);
+        commandHandlers[cmdName](params, responseData, command);
 
         // Send success response
         sendResponse(ResponseType::DATA, cmdId, responseData);

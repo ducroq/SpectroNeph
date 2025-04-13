@@ -40,8 +40,12 @@ enum class ResponseType
 
 /**
  * @brief Function type for command handlers
+ * 
+ * @param params Input parameters for the command (read-only)
+ * @param response Output data to be returned to the caller (writable)
+ * @param command The original command object (read-only)
  */
-typedef std::function<void(const JsonObject &, JsonObject &, JsonObject &)> CommandHandler;
+typedef std::function<void(const JsonObject &params, JsonObject &response, const JsonObject &command)> CommandHandler;
 
 /**
  * @brief Protocol class for handling communication
