@@ -22,6 +22,10 @@ class LoggerAdapter(logging.LoggerAdapter):
         if 'extra' not in kwargs:
             kwargs['extra'] = {}
         extra = kwargs.get('extra', {})
+
+        # Ensure experiment_id exists
+        if 'experiment_id' not in extra:
+            extra['experiment_id'] = 'none'        
         
         # Include thread name for async operations
         if 'thread_name' not in extra:
@@ -96,9 +100,12 @@ def _get_detailed_formatter(for_console=False):
     """Create a detailed formatter for logs, optionally with colors."""
     fmt = settings.LOG_FORMAT
     
-    # Add experiment info if available
-    if 'experiment_id' in settings.get('LOG_FORMAT_EXTRAS', []):
+    # Add experiment info if available, but only when running experiments
+    # Default to standard format for tests
+    if 'experiment_id' in settings.get('LOG_FORMAT_EXTRAS', []) and 'tests' not in __name__:
         fmt = "%(asctime)s - [%(experiment_id)s] - %(name)s - %(levelname)s - %(message)s"
+    else:
+        fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     
     formatter = ColoredFormatter(fmt, datefmt='%Y-%m-%d %H:%M:%S')
     if for_console:

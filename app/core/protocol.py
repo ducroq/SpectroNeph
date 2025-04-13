@@ -146,11 +146,21 @@ class Protocol:
         Raises:
             ProtocolError: If message cannot be decoded
         """
+        # Skip empty strings or whitespace
+        if not message_str or not message_str.strip():
+            raise ProtocolError("Empty message")
+            
+        # Handle debug print statements from the device (if they start with non-JSON)
+        if message_str.strip() and not message_str.strip().startswith('{'):
+            # This is likely debug output, not JSON
+            logger.debug("Received non-JSON data: %s", message_str.strip())
+            raise ProtocolError("Non-JSON data received")
+            
         try:
             return json.loads(message_str)
         except json.JSONDecodeError as e:
             raise ProtocolError(f"Invalid JSON: {e}")
-    
+            
     @staticmethod
     def validate_command(command: Dict[str, Any]) -> bool:
         """

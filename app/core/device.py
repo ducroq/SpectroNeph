@@ -357,7 +357,7 @@ class DeviceManager:
         except Exception as e:
             logger.error("Error querying device information: %s", str(e))
             return False
-    
+
     def _on_data_received(self, data: str) -> None:
         """
         Handle data received from the device.
@@ -368,15 +368,29 @@ class DeviceManager:
         Args:
             data: Raw data line received
         """
+        # Skip empty lines
+        if not data or not data.strip():
+            return
+            
         # Try to parse the data as JSON
         try:
-            message = Protocol.decode_message(data)
-            self._handle_message(message)
-        except json.JSONDecodeError:
-            logger.warning("Received invalid JSON: %s", data)
+            # Check if this is likely a JSON message
+            if data.strip().startswith('{'):
+                message = Protocol.decode_message(data)
+                self._handle_message(message)
+            else:
+                # This is probably debug output from the device
+                if "error" in data.lower() or "warning" in data.lower():
+                    logger.warning("Device debug output: %s", data.strip())
+                else:
+                    logger.debug("Device output: %s", data.strip())
+        except ProtocolError as e:  # <-- Added 'as e' here
+            # This is expected sometimes and doesn't need to be logged every time
+            if "Empty message" not in str(e) and "Non-JSON data" not in str(e):
+                logger.debug("Protocol error: %s", str(e))
         except Exception as e:
             logger.error("Error handling message: %s", str(e), exc_info=True)
-    
+                            
     def _handle_message(self, message: Dict[str, Any]) -> None:
         """
         Handle a parsed message from the device.
