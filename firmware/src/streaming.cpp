@@ -88,21 +88,7 @@ bool StreamingManager::startStream(const String &type, const JsonObject &params,
     stream.lastUpdateMs = 0; // Force immediate update
     stream.active = true;
 
-    // Copy parameters if provided
-    if (params.size() > 0)
-    {
-        StaticJsonDocument<JSON_BUFFER_SIZE> doc;
-        JsonObject streamParams = doc.to<JsonObject>();
-
-        for (JsonPair kv : params)
-        {
-            streamParams[kv.key()] = kv.value();
-        }
-
-        stream.params = streamParams;
-    }
-
-#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 3
+ #if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 3
     Serial.print("Started stream: ");
     Serial.print(type);
     Serial.print(" with interval ");
@@ -207,9 +193,9 @@ bool StreamingManager::updateAs7341Stream(const DataStream &stream)
         return false;
     }
 
-    // Create data document
-    StaticJsonDocument<JSON_BUFFER_SIZE> doc;
-    JsonObject data = doc.to<JsonObject>();
+    // Create data document - use larger buffer
+    DynamicJsonDocument doc(JSON_BUFFER_SIZE * 2);
+    JsonObject data = doc.to<JsonObject>();    
 
     // Read spectral data
     if (!as7341.readSpectralData(data))
