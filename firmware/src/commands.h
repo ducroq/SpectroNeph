@@ -14,7 +14,7 @@
   */
  void registerCommands();
  
- // Command handler functions - update the third parameter to be const
+ // Command handler functions
  void handlePing(const JsonObject &params, JsonObject &response, const JsonObject &command);
  void handleGetInfo(const JsonObject &params, JsonObject &response, const JsonObject &command);
  void handleAs7341Init(const JsonObject &params, JsonObject &response, const JsonObject &command);
