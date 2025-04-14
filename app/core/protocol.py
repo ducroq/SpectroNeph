@@ -252,8 +252,8 @@ class Protocol:
         if not isinstance(message, dict):
             raise ProtocolError("Data message must be a dictionary")
             
-        if "data" not in message or message["data"] is not True:
-            raise ProtocolError("Data message missing 'data' field or 'data' is not True")
+        if "data" not in message:
+            raise ProtocolError("Data message missing 'data' field")
             
         if "type" not in message:
             raise ProtocolError("Data message missing 'type' field")
@@ -309,7 +309,7 @@ class Protocol:
             return MessageType.COMMAND
         elif "resp" in message:
             return MessageType.RESPONSE
-        elif "data" in message and message["data"] is True:
+        elif "data" in message and "type" in message:
             return MessageType.DATA
         elif "event" in message and message["event"] is True:
             return MessageType.EVENT
