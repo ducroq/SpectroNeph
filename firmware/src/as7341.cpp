@@ -181,26 +181,13 @@ bool AS7341Driver::configure(uint8_t gain, uint16_t integrationTime, uint8_t led
 
 bool AS7341Driver::readSpectralData(JsonObject &readings)
 {
-
-    static uint8_t recursion_count = 0;
-
-    // Prevent deep recursion
-    if (recursion_count > 1)
-    {
-#if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 1
-        Serial.println("Warning: Preventing deep recursion in readSpectralData");
-#endif
-        return false;
-    }
-
-    recursion_count++;
-
+    // Make sure we're initialized
     if (!initialized && !begin())
     {
         return false;
     }
 
-    // Measure all channels
+    // Measure all channels with a single call
     if (!as7341.readAllChannels())
     {
 #if ENABLE_DEBUG_MESSAGES && LOG_LEVEL >= 1
@@ -209,17 +196,17 @@ bool AS7341Driver::readSpectralData(JsonObject &readings)
         return false;
     }
 
-    // Read each channel
-    readings["F1"] = as7341.getChannel(AS7341_CHANNEL_415nm_F1); // 415nm
-    readings["F2"] = as7341.getChannel(AS7341_CHANNEL_445nm_F2); // 445nm
-    readings["F3"] = as7341.getChannel(AS7341_CHANNEL_480nm_F3); // 480nm
-    readings["F4"] = as7341.getChannel(AS7341_CHANNEL_515nm_F4); // 515nm
-    readings["F5"] = as7341.getChannel(AS7341_CHANNEL_555nm_F5); // 555nm
-    readings["F6"] = as7341.getChannel(AS7341_CHANNEL_590nm_F6); // 590nm
-    readings["F7"] = as7341.getChannel(AS7341_CHANNEL_630nm_F7); // 630nm
-    readings["F8"] = as7341.getChannel(AS7341_CHANNEL_680nm_F8); // 680nm
-    readings["Clear"] = as7341.getChannel(AS7341_CHANNEL_CLEAR); // Clear
-    readings["NIR"] = as7341.getChannel(AS7341_CHANNEL_NIR);     // Near IR
+    // Read each channel into the readings object
+    readings["F1"] = as7341.getChannel(AS7341_CHANNEL_415nm_F1);     // 415nm
+    readings["F2"] = as7341.getChannel(AS7341_CHANNEL_445nm_F2);     // 445nm
+    readings["F3"] = as7341.getChannel(AS7341_CHANNEL_480nm_F3);     // 480nm
+    readings["F4"] = as7341.getChannel(AS7341_CHANNEL_515nm_F4);     // 515nm
+    readings["F5"] = as7341.getChannel(AS7341_CHANNEL_555nm_F5);     // 555nm
+    readings["F6"] = as7341.getChannel(AS7341_CHANNEL_590nm_F6);     // 590nm
+    readings["F7"] = as7341.getChannel(AS7341_CHANNEL_630nm_F7);     // 630nm
+    readings["F8"] = as7341.getChannel(AS7341_CHANNEL_680nm_F8);     // 680nm
+    readings["Clear"] = as7341.getChannel(AS7341_CHANNEL_CLEAR);     // Clear
+    readings["NIR"] = as7341.getChannel(AS7341_CHANNEL_NIR);         // Near IR
 
     return true;
 }
@@ -292,13 +279,16 @@ void AS7341Driver::getConfiguration(JsonObject &config)
 
 bool AS7341Driver::isConnected()
 {
-    if (initialized)
-    {
-        return true;
+    // Check if the device responds to I2C
+    Wire.beginTransmission(AS7341_I2CADDR_DEFAULT);
+    bool connected = (Wire.endTransmission() == 0);
+    
+    // Only try to initialize if not already initialized
+    if (!initialized && connected) {
+        initialized = begin();
     }
-
-    // Try to initialize if not already initialized
-    return begin();
+    
+    return initialized;
 }
 
 uint16_t AS7341Driver::integrationTimeToAtime(uint16_t ms)
