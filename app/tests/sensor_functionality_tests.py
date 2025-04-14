@@ -87,7 +87,7 @@ class AS7341SensorTests(unittest.TestCase):
         }
         
         # Create a data directory if it doesn't exist
-        cls.data_dir = project_root / "data"
+        cls.data_dir = project_root / "test_data"
         cls.data_dir.mkdir(exist_ok=True)
               
         # Sleep briefly to ensure connection is stable
