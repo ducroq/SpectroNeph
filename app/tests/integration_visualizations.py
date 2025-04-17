@@ -928,7 +928,7 @@ def main():
         # Configuration for optimal signal with 0.02% beads
         config = {
             "gain": 10,                # Maximum gain
-            "integration_time": 500,   # Long integration time
+            "integration_time": 400,   # Long integration time
             "led_current": 20          # Maximum LED current
         }
         
