@@ -411,36 +411,38 @@ def generate_repeatability_plot(data, output_dir):
     
     # Create plot
     plt.figure(figsize=(12, 8))
-    
-    # Plot 1: Mean and standard deviation by channel
-    plt.subplot(2, 1, 1)
+
     x = np.arange(len(channels))
     means = [stats[ch]["mean"] for ch in channels]
     stds = [stats[ch]["std"] for ch in channels]
     colors = [CHANNEL_COLORS[ch] for ch in channels]
     
-    plt.bar(x, means, yerr=stds, color=colors, alpha=0.7, capsize=5)
-    plt.xticks(x, channels)
-    plt.ylabel('Signal Value')
-    plt.title('Mean Signal Values with Standard Deviation')
-    plt.grid(True, alpha=0.3)
-    
-    # Plot 2: Coefficient of variation by channel
-    plt.subplot(2, 1, 2)
+    # Plot 1: CV by channel
+    plt.subplot(2, 1, 1)
     cvs = [stats[ch]["cv"] for ch in channels]
-    
     plt.bar(x, cvs, color=colors, alpha=0.7)
     plt.xticks(x, channels)
     plt.ylabel('Coefficient of Variation (%)')
-    plt.title('Measurement Repeatability (lower is better)')
+    plt.title('Measurement Repeatability')
     plt.grid(True, alpha=0.3)
-    
-    # Add thresholds for visual reference
-    plt.axhline(y=1, linestyle='--', color='green', alpha=0.7, label='CV = 1%')
-    plt.axhline(y=5, linestyle='--', color='orange', alpha=0.7, label='CV = 5%')
-    plt.axhline(y=10, linestyle='--', color='red', alpha=0.7, label='CV = 10%')
-    plt.legend()
-    
+
+    # Plot 2: Scatterplot of all measurements
+    plt.subplot(2, 1, 2)
+    for i, ch in enumerate(channels):
+        # Create scatter points with slight horizontal jitter for visibility
+        y_values = channel_values[ch]
+        x_values = np.random.normal(i, 0.1, size=len(y_values))
+        plt.scatter(x_values, y_values, color=CHANNEL_COLORS[ch], alpha=0.7, s=30)
+        
+        # Add mean as a horizontal line
+        plt.hlines(stats[ch]["mean"], i-0.2, i+0.2, colors='black', linestyles='solid')
+
+    plt.xlabel('Channel')
+    plt.ylabel('Signal Value')
+    plt.title('Individual Measurements with Mean')
+    plt.xticks(range(len(channels)), channels)
+    plt.grid(True, alpha=0.3)        
+
     plt.tight_layout()
     
     # Save the plot
@@ -926,12 +928,12 @@ def main():
         # Configuration for optimal signal with 0.02% beads
         config = {
             "gain": 10,                # Maximum gain
-            "integration_time": 300,   # Long integration time
+            "integration_time": 500,   # Long integration time
             "led_current": 20          # Maximum LED current
         }
         
         # Collect measurements
-        data = collect_measurement_data(nephelometer, config, num_measurements=20)
+        data = collect_measurement_data(nephelometer, config, num_measurements=10)
         
         # Save the data
         data_file = save_measurement_data(data, output_dir)
