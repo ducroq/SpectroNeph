@@ -336,56 +336,41 @@ class AcquisitionSession:
         # Add measurement to the session
         self._add_measurement(measurement)
     
-    def _add_measurement(self, measurement: Dict[str, Any]) -> None:
-        """
-        Add a measurement to the session with improved debugging.
-        
-        Args:
-            measurement: Measurement data
-        """
-        print("DEBUG: Entering _add_measurement method")
-        try:
-            # Use a non-blocking approach to acquire the lock
-            if not self._lock.acquire(timeout=2):
-                print("DEBUG: Could not acquire lock after 2 seconds!")
-                return
+def _add_measurement(self, measurement: Dict[str, Any]) -> None:
+    """
+    Add a measurement to the session.
+    
+    Args:
+        measurement: Measurement data to add
+    """
+    # Create a copy of the measurement to avoid modifying the original
+    measurement_copy = measurement.copy()
+    
+    # Add session metadata outside the lock to minimize lock time
+    measurement_copy["session_id"] = self.session_id
+    if "timestamp" not in measurement_copy:
+        measurement_copy["timestamp"] = time.time()
+    
+    # Use a context manager for the lock to ensure it's always released
+    try:
+        with self._lock:
+            # Add to measurements list and buffer
+            self.measurements.append(measurement_copy)
+            self.data_buffer.append(measurement_copy)
             
+            # Make a copy of callbacks to avoid holding the lock during callback execution
+            callbacks_to_call = list(self.data_callbacks)
+    
+        # Execute callbacks outside the lock to prevent deadlocks
+        for callback in callbacks_to_call:
             try:
-                print("DEBUG: Lock acquired, adding session metadata")
-                # Add session metadata to the measurement
-                measurement["session_id"] = self.session_id
-                if "timestamp" not in measurement:
-                    measurement["timestamp"] = time.time()
-                
-                print("DEBUG: Adding to measurements list")
-                # Add to measurements list
-                self.measurements.append(measurement)
-                
-                print("DEBUG: Adding to data buffer")
-                # Add to buffer for real-time access
-                self.data_buffer.append(measurement)
-                
-                print(f"DEBUG: Calling {len(self.data_callbacks)} registered callbacks")
-                # Call registered callbacks
-                for i, callback in enumerate(self.data_callbacks):
-                    try:
-                        # print(f"DEBUG: Calling callback {i+1}")
-                        callback(measurement)
-                        print(f"DEBUG: Callback {i+1} completed")
-                    except Exception as e:
-                        print(f"DEBUG: Error in callback {i+1}: {str(e)}")
-                        logger.error(f"Error in measurement callback: {str(e)}", exc_info=True)
-                        
-                print("DEBUG: All callbacks complete")
-            finally:
-                print("DEBUG: Releasing lock")
-                self._lock.release()
-                
-            print("DEBUG: _add_measurement completed successfully")
-        except Exception as e:
-            print(f"DEBUG: Exception in _add_measurement: {str(e)}")
-            logger.error(f"Error adding measurement: {str(e)}", exc_info=True)
-
+                callback(measurement_copy)
+            except Exception as e:
+                logger.error(f"Error in measurement callback: {str(e)}", exc_info=True)
+    
+    except Exception as e:
+        logger.error(f"Error adding measurement: {str(e)}", exc_info=True)
+        
 class DataAcquisitionManager:
     """
     Manages data acquisition across multiple sessions.
