@@ -475,6 +475,73 @@ class DataStorage:
             logger.error(f"Error exporting to CSV: {str(e)}")
             return False
     
+    def _convert_numpy_types(self, value: Any) -> Any:
+        """
+        Convert numpy types to native Python types.
+        
+        Args:
+            value: Value to convert
+            
+        Returns:
+            Converted value
+        """
+        if hasattr(value, "item") and callable(getattr(value, "item")):
+            try:
+                return value.item()
+            except:
+                try:
+                    return float(value)
+                except:
+                    return str(value)
+        elif isinstance(value, dict):
+            return {k: self._convert_numpy_types(v) for k, v in value.items()}
+        elif isinstance(value, list):
+            return [self._convert_numpy_types(v) for v in value]
+        else:
+            return value
+    
+    def _flatten_measurement(self, measurement: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Flatten a measurement's nested structure for CSV export.
+        
+        Args:
+            measurement: Measurement to flatten
+            
+        Returns:
+            Dict[str, Any]: Flattened measurement
+        """
+        flat_m = {
+            "timestamp": measurement.get("timestamp", ""),
+            "session_id": measurement.get("session_id", "")
+        }
+        
+        # Add raw channels
+        if "raw" in measurement:
+            for channel, value in measurement["raw"].items():
+                flat_m[f"raw_{channel}"] = self._convert_numpy_types(value)
+        
+        # Add processed channels
+        if "processed" in measurement:
+            for category, data in measurement["processed"].items():
+                # If it's a nested dictionary (like filtered or normalized)
+                if isinstance(data, dict):
+                    for channel, value in data.items():
+                        # Skip nested structures within the data
+                        if not isinstance(value, (dict, list)):
+                            flat_m[f"processed_{category}_{channel}"] = self._convert_numpy_types(value)
+                else:
+                    # Direct value (not a dictionary)
+                    # Skip if it's a complex object
+                    if not isinstance(data, (dict, list)):
+                        flat_m[f"processed_{category}"] = self._convert_numpy_types(data)
+        
+        # Add ratios
+        if "ratios" in measurement:
+            for ratio, value in measurement["ratios"].items():
+                flat_m[f"ratio_{ratio}"] = self._convert_numpy_types(value)
+        
+        return flat_m
+    
     def _save_json(self, data: Dict[str, Any], filepath: Path) -> str:
         """
         Save data to JSON format.
@@ -534,83 +601,44 @@ class DataStorage:
             logger.error(f"Error loading JSON data: {str(e)}")
             raise
     
-    def _save_csv(self, data: Dict[str, Any], filepath: Path) -> str:
+    def _save_csv(self, session_data: Dict[str, Any], filepath: Path) -> str:
         """
         Save session data to CSV format.
         
         Args:
-            data: Session data to save
+            session_data: Session data to save
             filepath: Path to save the file
             
         Returns:
             str: Path to the saved file
         """
         try:
-            # Create parent directories if needed
-            filepath.parent.mkdir(parents=True, exist_ok=True)
-            
             # Extract measurements
-            measurements = data.get("measurements", [])
+            measurements = session_data.get("measurements", [])
             if not measurements:
                 logger.warning("No measurements to save to CSV")
                 return str(filepath)
             
-            # Get all fields from the first measurement
-            sample_measurement = measurements[0]
-            
-            # Build header row
-            header = ["timestamp", "session_id"]
-            
-            # Add raw channels
-            if "raw" in sample_measurement:
-                for channel in sample_measurement["raw"]:
-                    header.append(f"raw_{channel}")
-            
-            # Add processed channels if available
-            if "processed" in sample_measurement:
-                for channel in sample_measurement["processed"]:
-                    header.append(f"processed_{channel}")
-            
-            # Add ratios if available
-            if "ratios" in sample_measurement:
-                for ratio in sample_measurement["ratios"]:
-                    header.append(f"ratio_{ratio}")
-            
-            # Add metadata file
+            # Save metadata to separate file
             metadata_filepath = filepath.with_name(f"{filepath.stem}_metadata.json")
             with open(metadata_filepath, 'w') as f:
-                json.dump(data.get("metadata", {}), f, indent=2)
-            
-            # Write CSV file
-            with open(filepath, 'w', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow(header)
+                # Use the JSON encoder from _save_json
+                class NumpyEncoder(json.JSONEncoder):
+                    def default(self, obj):
+                        if isinstance(obj, np.ndarray):
+                            return obj.tolist()
+                        if isinstance(obj, np.integer):
+                            return int(obj)
+                        if isinstance(obj, np.floating):
+                            return float(obj)
+                        if isinstance(obj, datetime.datetime):
+                            return obj.isoformat()
+                        return super().default(obj)
                 
-                for m in measurements:
-                    row = [
-                        m.get("timestamp", ""),
-                        m.get("session_id", "")
-                    ]
-                    
-                    # Add raw channel values
-                    if "raw" in m:
-                        for channel in sample_measurement["raw"]:
-                            row.append(m["raw"].get(channel, ""))
-                    
-                    # Add processed channel values
-                    if "processed" in m and "processed" in sample_measurement:
-                        for channel in sample_measurement["processed"]:
-                            row.append(m["processed"].get(channel, ""))
-                    
-                    # Add ratio values
-                    if "ratios" in m and "ratios" in sample_measurement:
-                        for ratio in sample_measurement["ratios"]:
-                            row.append(m["ratios"].get(ratio, ""))
-                    
-                    writer.writerow(row)
+                json.dump(session_data.get("metadata", {}), f, cls=NumpyEncoder, indent=2)
             
-            logger.info(f"Saved CSV data to {filepath}")
-            return str(filepath)
+            # Flatten measurements and export
+            return self._export_measurements_csv(measurements, filepath)
             
         except Exception as e:
             logger.error(f"Error saving CSV data: {str(e)}")
@@ -669,8 +697,16 @@ class DataStorage:
                                 channel = field[4:]
                                 measurement["raw"][channel] = value
                             elif field.startswith("processed_"):
-                                channel = field[10:]
-                                measurement["processed"][channel] = value
+                                # Handle flattened processed fields (processed_category_channel)
+                                parts = field[10:].split('_', 1)
+                                if len(parts) > 1:
+                                    category, channel = parts
+                                    if category not in measurement["processed"]:
+                                        measurement["processed"][category] = {}
+                                    measurement["processed"][category][channel] = value
+                                else:
+                                    # Direct processed value
+                                    measurement["processed"][parts[0]] = value
                             elif field.startswith("ratio_"):
                                 ratio = field[6:]
                                 measurement["ratios"][ratio] = value
@@ -743,80 +779,65 @@ class DataStorage:
             logger.error(f"Error loading YAML data: {str(e)}")
             raise
     
-    def _export_measurements_csv(self, measurements: List[Dict[str, Any]], filepath: Path) -> bool:
+    def _export_measurements_csv(self, measurements: List[Dict[str, Any]], filepath: Path) -> str:
         """
-        Export measurements to CSV with one row per measurement.
+        Export measurements to CSV with completely flattened structure.
         
         Args:
             measurements: List of measurements to export
             filepath: Path to save the CSV file
             
         Returns:
-            bool: True if export was successful
+            str: Path to the saved file
         """
         try:
             # Create parent directories if needed
             filepath.parent.mkdir(parents=True, exist_ok=True)
             
-            # Get all possible fields from all measurements
-            raw_channels = set()
-            processed_channels = set()
-            ratio_names = set()
+            # Build a flattened version of all measurements
+            flattened_measurements = []
             
             for m in measurements:
-                if "raw" in m:
-                    raw_channels.update(m["raw"].keys())
-                if "processed" in m:
-                    processed_channels.update(m["processed"].keys())
-                if "ratios" in m:
-                    ratio_names.update(m["ratios"].keys())
+                flat_m = self._flatten_measurement(m)
+                flattened_measurements.append(flat_m)
             
-            # Build header row
-            header = ["timestamp", "session_id"]
+            # Get all possible column names from all measurements
+            all_columns = set()
+            for flat_m in flattened_measurements:
+                all_columns.update(flat_m.keys())
             
-            # Add raw channels
-            for channel in sorted(raw_channels):
-                header.append(f"raw_{channel}")
+            # Create a sorted list of columns with a specific order
+            # First the basic fields, then raw, then processed, then ratios
+            columns = ["timestamp", "session_id"]
             
-            # Add processed channels
-            for channel in sorted(processed_channels):
-                header.append(f"processed_{channel}")
+            # Add raw channels in sorted order
+            raw_columns = sorted([col for col in all_columns if col.startswith("raw_")])
+            columns.extend(raw_columns)
             
-            # Add ratios
-            for ratio in sorted(ratio_names):
-                header.append(f"ratio_{ratio}")
+            # Add processed channels in sorted order
+            processed_columns = sorted([col for col in all_columns if col.startswith("processed_")])
+            columns.extend(processed_columns)
+            
+            # Add ratio columns in sorted order
+            ratio_columns = sorted([col for col in all_columns if col.startswith("ratio_")])
+            columns.extend(ratio_columns)
+            
+            # Make sure we haven't missed any
+            remaining_columns = sorted([col for col in all_columns if col not in columns])
+            columns.extend(remaining_columns)
             
             # Write CSV file
             with open(filepath, 'w', newline='') as f:
-                writer = csv.writer(f)
-                writer.writerow(header)
-                
-                for m in measurements:
-                    row = [
-                        m.get("timestamp", ""),
-                        m.get("session_id", "")
-                    ]
-                    
-                    # Add raw channel values
-                    for channel in sorted(raw_channels):
-                        row.append(m.get("raw", {}).get(channel, ""))
-                    
-                    # Add processed channel values
-                    for channel in sorted(processed_channels):
-                        row.append(m.get("processed", {}).get(channel, ""))
-                    
-                    # Add ratio values
-                    for ratio in sorted(ratio_names):
-                        row.append(m.get("ratios", {}).get(ratio, ""))
-                    
-                    writer.writerow(row)
+                writer = csv.DictWriter(f, fieldnames=columns, extrasaction='ignore')
+                writer.writeheader()
+                writer.writerows(flattened_measurements)
             
             logger.info(f"Exported {len(measurements)} measurements to {filepath}")
-            return True
+            return str(filepath)
             
         except Exception as e:
-            logger.error(f"Error exporting measurements to CSV: {str(e)}")
-            return False
+            logger.error(f"Error exporting measurements to CSV: {str(e)}", exc_info=True)
+            return str(filepath)
     
     def _export_timeseries_csv(self, measurements: List[Dict[str, Any]], filepath: Path) -> bool:
         """
