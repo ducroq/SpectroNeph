@@ -63,7 +63,7 @@ public:
      * @param enable Whether to enable the LED
      * @return true if successful
      */
-    bool setExternalLed(bool enable);
+    bool enableExternalLed(bool enable);
 
     /**
      * @brief Get the current configuration
@@ -78,6 +78,25 @@ public:
      * @return true if sensor is connected
      */
     bool isConnected();
+
+    /*
+    * @brief Enable or disable the onboard LED
+    */
+    bool enableLed(bool enable);
+
+    /**
+     * @brief Check if the LED is enabled
+     * 
+     * @return true if successful
+     */
+    bool isLedEnabled() const { return ledEnabled; }
+
+    /**
+     * @brief Check if the external LED is enabled
+     * 
+     * @return true if external LED is enabled
+     */    
+    bool isExternalLedEnabled() const { return externalLedEnabled; }
 
 private:
     Adafruit_AS7341 as7341;

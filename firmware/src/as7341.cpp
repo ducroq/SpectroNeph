@@ -211,6 +211,14 @@ bool AS7341Driver::readSpectralData(JsonObject &readings)
     return true;
 }
 
+bool AS7341Driver::enableLed(bool enable) {
+    bool result = as7341.enableLED(enable);
+    if (result) 
+        // Update internal state
+        ledEnabled = enable;
+    return result;
+}
+
 bool AS7341Driver::setLed(bool enable, uint8_t current)
 {
     if (!initialized && !begin())
@@ -247,7 +255,7 @@ bool AS7341Driver::setLed(bool enable, uint8_t current)
     return true;
 }
 
-bool AS7341Driver::setExternalLed(bool enable)
+bool AS7341Driver::enableExternalLed(bool enable)
 {
 #if defined(LED_PIN) && LED_PIN >= 0
     digitalWrite(LED_PIN, enable ? HIGH : LOW);

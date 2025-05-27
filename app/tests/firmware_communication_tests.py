@@ -397,6 +397,66 @@ class FirmwareCommunicationTests(unittest.TestCase):
         except Exception as e:
             self.fail(f"Advanced commands test failed: {str(e)}")
 
+    def test_10_as7341_read(self):
+        """Test reading diferential sensor data from AS7341."""
+        try:
+            # Configure sensor with reasonable settings
+            self.device.send_command(
+                "as7341_config",
+                {
+                    "gain": 6,  # 32x gain for better signal
+                    "integration_time": 100,  # 100ms
+                },
+            )
+
+            # Set LED current for measurement
+            self.device.send_command(
+                "as7341_led", {"enabled": False, "current": 10}  # 10mA
+            )
+
+            # Read sensor data
+            response = self.device.send_command("as7341_differential_read")
+
+            self.assertEqual(
+                response.get("status"), 0, "as7341_differential_read command should succeed"
+            )
+
+            # Check if response contains expected channels
+            data = response.get("data", {})
+            expected_channels = [
+                "F1",
+                "F2",
+                "F3",
+                "F4",
+                "F5",
+                "F6",
+                "F7",
+                "F8",
+                "Clear",
+                "NIR",
+            ]
+
+            for channel in expected_channels:
+                self.assertIn(
+                    channel, data, f"Response should include {channel} channel"
+                )
+                # Check if readings are in a reasonable range
+                self.assertGreaterEqual(
+                    data.get(channel, 0), 0, f"{channel} reading should be >= 0"
+                )
+                self.assertLessEqual(
+                    data.get(channel, 0), 65535, f"{channel} reading should be <= 65535"
+                )
+
+            print("✓ AS7341 differential sensor reading test passed")
+            print(
+                f"  Sample readings - F1(415nm): {data.get('F1')}, F4(515nm): {data.get('F4')}, "
+                f"F8(680nm): {data.get('F8')}"
+            )
+        except Exception as e:
+            self.fail(f"AS7341 sensor reading test failed: {str(e)}")
+
+
 
 def main():
     """Main entry point for the test script."""

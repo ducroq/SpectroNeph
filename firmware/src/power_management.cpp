@@ -61,7 +61,7 @@ void PowerManagement::enterLightSleep(uint32_t sleepTimeMs)
 
     // Turn off LED and sensor
     as7341.setLed(false);
-    as7341.setExternalLed(false);
+    as7341.enableExternalLed(false);
 
     // Enter light sleep (can be woken by timer or external interrupt)
     if (sleepTimeMs > 0)

@@ -17,6 +17,7 @@ void registerCommands()
     protocol.registerCommand("as7341_init", handleAs7341Init);
     protocol.registerCommand("as7341_config", handleAs7341Config);
     protocol.registerCommand("as7341_read", handleAs7341Read);
+    protocol.registerCommand("as7341_differential_read", handleAs7341DifferentialRead);
     protocol.registerCommand("as7341_led", handleAs7341Led);
     protocol.registerCommand("stream_start", handleStreamStart);
     protocol.registerCommand("stream_stop", handleStreamStop);
@@ -107,6 +108,33 @@ void handleAs7341Read(const JsonObject &params, JsonObject &response, const Json
     }
 }
 
+void handleAs7341DifferentialRead(const JsonObject &params, JsonObject &response, const JsonObject &command)
+{
+    // Take differential reading in firmware for faster switching
+    bool ledWasOn = as7341.isLedEnabled();
+    
+    // LED OFF reading
+    as7341.enableLed(false);
+    delay(30);  // Shorter delay possible in firmware
+    JsonObject darkData;
+    as7341.readSpectralData(darkData);
+    
+    // LED ON reading
+    as7341.enableLed(true);
+    delay(30);
+    as7341.readSpectralData(response);
+    
+    // Calculate differential
+    for (JsonPair kv : response) {
+        response[kv.key()] = max(0, kv.value().as<int>() - darkData[kv.key()].as<int>());
+    }
+    
+    // Restore LED state
+    if (!ledWasOn) {
+        as7341.setLed(false, 0);
+    }
+}
+
 void handleAs7341Led(const JsonObject &params, JsonObject &response, const JsonObject &command)
 {
     // Control the AS7341 LED
@@ -119,7 +147,7 @@ void handleAs7341Led(const JsonObject &params, JsonObject &response, const JsonO
     bool success;
     if (useExternal)
     {
-        success = as7341.setExternalLed(enable);
+        success = as7341.enableExternalLed(enable);
         response["type"] = "external";
     }
     else
@@ -220,7 +248,7 @@ void handleResetDevice(const JsonObject &params, JsonObject &response, const Jso
 
     // Turn off LEDs
     as7341.setLed(false);
-    as7341.setExternalLed(false);
+    as7341.enableExternalLed(false);
 
     // Indicate success and schedule reset
     response["reset"] = true;
