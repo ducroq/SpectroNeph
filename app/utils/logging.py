@@ -101,11 +101,8 @@ def _get_detailed_formatter(for_console=False):
     fmt = settings.LOG_FORMAT
     
     # Add experiment info if available, but only when running experiments
-    # Default to standard format for tests
     if 'experiment_id' in settings.get('LOG_FORMAT_EXTRAS', []) and 'tests' not in __name__:
         fmt = "%(asctime)s - [%(experiment_id)s] - %(name)s - %(levelname)s - %(message)s"
-    else:
-        fmt = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     
     formatter = ColoredFormatter(fmt, datefmt='%Y-%m-%d %H:%M:%S')
     if for_console:
@@ -199,9 +196,12 @@ def setup_logging() -> logging.Logger:
             # Don't log keyboard interrupt as error
             sys.__excepthook__(exc_type, exc_value, exc_traceback)
             return
-            
-        logger.critical("Uncaught exception", 
-                       exc_info=(exc_type, exc_value, exc_traceback))
+
+        logger.critical(
+            "Uncaught exception",
+            exc_info=(exc_type, exc_value, exc_traceback),
+            extra={'experiment_id': 'uncaught_exception'}  # Or some other default value
+        )
     
     sys.excepthook = exception_handler
     
