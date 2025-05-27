@@ -22,6 +22,7 @@
 #define DEFAULT_ATIME 100            // Default integration time (ms)
 #define DEFAULT_LED_CURRENT 10       // Default LED current (mA, 0-20)
 #define MAX_LED_CURRENT 20           // Maximum LED current (mA)
+#define DEFAULT_DIFFERENTIAL_READ_DELAY 100 // Default delay for differential read (ms)
 
 // Protocol settings
 #define CMD_BUFFER_SIZE 5                 // Number of commands to buffer

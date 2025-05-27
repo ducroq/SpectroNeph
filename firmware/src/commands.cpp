@@ -110,18 +110,19 @@ void handleAs7341Read(const JsonObject &params, JsonObject &response, const Json
 
 void handleAs7341DifferentialRead(const JsonObject &params, JsonObject &response, const JsonObject &command)
 {
-    // Take differential reading in firmware for faster switching
     bool ledWasOn = as7341.isLedEnabled();
-    
+
+    uint16_t differential_read_delay = params.containsKey("delay") ? params["delay"].as<uint16_t>() : DEFAULT_DIFFERENTIAL_READ_DELAY;
+
     // LED OFF reading
     as7341.enableLed(false);
-    delay(30);  // Shorter delay possible in firmware
+    delay(differential_read_delay);
     JsonObject darkData;
     as7341.readSpectralData(darkData);
     
     // LED ON reading
     as7341.enableLed(true);
-    delay(30);
+    delay(differential_read_delay);
     as7341.readSpectralData(response);
     
     // Calculate differential
