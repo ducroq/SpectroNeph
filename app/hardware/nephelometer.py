@@ -167,14 +167,11 @@ class Nephelometer:
         
         with self._measurement_lock:
             try:
-                # Ensure LED is on
-                self._sensor.set_led(True)
-                
                 # Take the measurement
-                raw_data = self._sensor.read_spectral_data()
+                raw_data = self._sensor.read_spectral_data(subtract_background)
                 
                 # Process the data
-                processed_data = self._process_measurement(raw_data, subtract_background)
+                processed_data = self._process_measurement(raw_data)
                 
                 return processed_data
                 
@@ -557,14 +554,12 @@ class Nephelometer:
         self._is_measuring = False
         logger.debug("Kinetic measurement thread stopped")
     
-    def _process_measurement(self, raw_data: Dict[str, int], 
-                            subtract_background: bool) -> Dict[str, Any]:
+    def _process_measurement(self, raw_data: Dict[str, int]) -> Dict[str, Any]:
         """
         Process a raw measurement.
         
         Args:
             raw_data: Raw spectral data from sensor
-            subtract_background: Whether to subtract background readings
             
         Returns:
             Dict: Processed measurement data
@@ -576,16 +571,16 @@ class Nephelometer:
             "ratios": {}
         }
         
-        # Apply background subtraction if requested and available
-        if subtract_background and self._background_reading:
-            for channel, value in raw_data.items():
-                if channel in self._background_reading:
-                    # Subtract with floor at zero
-                    processed["processed"][channel] = max(0, value - self._background_reading[channel])
-                else:
-                    processed["processed"][channel] = value
-        else:
-            processed["processed"] = raw_data.copy()
+        # # Apply background subtraction if requested and available
+        # if subtract_background and self._background_reading:
+        #     for channel, value in raw_data.items():
+        #         if channel in self._background_reading:
+        #             # Subtract with floor at zero
+        #             processed["processed"][channel] = max(0, value - self._background_reading[channel])
+        #         else:
+        #             processed["processed"][channel] = value
+        # else:
+        processed["processed"] = raw_data.copy()
         
         # Calculate channel ratios
         ratios = self._sensor.calculate_channel_ratios(processed["processed"])

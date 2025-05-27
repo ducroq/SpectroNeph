@@ -145,9 +145,12 @@ class AS7341:
             logger.error("Error configuring AS7341: %s", str(e))
             return False
     
-    def read_spectral_data(self) -> Dict[str, int]:
+    def read_spectral_data(self, differential:bool = False) -> Dict[str, int]:
         """
         Read spectral data from all channels.
+        
+        Args:
+            differential: Whether to read differential data (default: False)
         
         Returns:
             Dict[str, int]: Channel values keyed by channel name
@@ -156,7 +159,12 @@ class AS7341:
             AS7341Error: If reading fails
         """
         try:
-            response = self._comm.send_command("as7341_read", {})
+            if differential:
+                # Read differential data if requested
+                response = self._comm.send_command("as7341_differential_read", {})
+            else:
+                # Read standard data
+                response = self._comm.send_command("as7341_read", {})
             
             if response.get("status") != 0:
                 error_msg = f"Failed to read AS7341: {response.get('data')}"
