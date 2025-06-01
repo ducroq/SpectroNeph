@@ -167,6 +167,9 @@ class Nephelometer:
         
         with self._measurement_lock:
             try:
+                # Ensure LED is on
+                self._sensor.set_led(True)
+
                 # Take the measurement
                 raw_data = self._sensor.read_spectral_data(subtract_background)
                 

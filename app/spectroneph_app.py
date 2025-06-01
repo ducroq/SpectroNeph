@@ -110,26 +110,22 @@ class DeviceConnectionWidget(QWidget):
             "256x (9)", "512x (10)"
         ]
         self.gain_combo.addItems(gain_values)
-        self.gain_combo.setCurrentIndex(5)  # Default to 16x gain
+        self.gain_combo.setCurrentIndex(10)
         config_layout.addRow("Gain:", self.gain_combo)
         
         # Integration time
         self.integration_spin = QSpinBox()
         self.integration_spin.setRange(1, 1000)
-        self.integration_spin.setValue(100)
+        self.integration_spin.setValue(300)
         self.integration_spin.setSuffix(" ms")
         config_layout.addRow("Integration Time:", self.integration_spin)
         
         # LED current
         self.led_current_spin = QSpinBox()
         self.led_current_spin.setRange(0, 20)
-        self.led_current_spin.setValue(10)
+        self.led_current_spin.setValue(20)
         self.led_current_spin.setSuffix(" mA")
         config_layout.addRow("LED Current:", self.led_current_spin)
-        
-        # LED control
-        self.led_check = QCheckBox("LED Enabled")
-        config_layout.addRow("", self.led_check)
         
         # Apply button
         self.apply_button = QPushButton("Apply Configuration")
@@ -238,7 +234,6 @@ class DeviceConnectionWidget(QWidget):
             # Get other values
             integration_time = self.integration_spin.value()
             led_current = self.led_current_spin.value()
-            led_enabled = self.led_check.isChecked()
             
             # Apply configuration
             config = {
@@ -252,13 +247,13 @@ class DeviceConnectionWidget(QWidget):
                 return
                 
             # Set LED state
-            if not self.nephelometer.set_led(led_enabled, led_current):
+            if not self.nephelometer.set_led(False, led_current):
                 self.connection_error.emit("Failed to control LED")
                 return
                 
             logger.info(f"Applied configuration: gain={gain_value}, " 
                        f"integration_time={integration_time}ms, "
-                       f"led_current={led_current}mA, led_enabled={led_enabled}")
+                       f"led_current={led_current}mA")
                 
         except Exception as e:
             logger.error(f"Error applying configuration: {str(e)}")
@@ -269,7 +264,6 @@ class DeviceConnectionWidget(QWidget):
         self.gain_combo.setEnabled(enabled)
         self.integration_spin.setEnabled(enabled)
         self.led_current_spin.setEnabled(enabled)
-        self.led_check.setEnabled(enabled)
         self.apply_button.setEnabled(enabled)
     
     def get_nephelometer(self) -> Optional[Nephelometer]:
@@ -296,23 +290,7 @@ class MeasurementControlWidget(QWidget):
         """Initialize the user interface."""
         # Create layout
         layout = QVBoxLayout()
-        
-        # Measurement type selection
-        self.measurement_group = QGroupBox("Measurement Type")
-        measurement_layout = QVBoxLayout()
-        
-        self.single_radio = QRadioButton("Single Measurement")
-        self.continuous_radio = QRadioButton("Continuous Measurement")
-        self.kinetic_radio = QRadioButton("Kinetic Measurement")
-        
-        self.single_radio.setChecked(True)
-        measurement_layout.addWidget(self.single_radio)
-        measurement_layout.addWidget(self.continuous_radio)
-        measurement_layout.addWidget(self.kinetic_radio)
-        
-        self.measurement_group.setLayout(measurement_layout)
-        layout.addWidget(self.measurement_group)
-        
+               
         # Measurement parameters
         self.params_group = QGroupBox("Measurement Parameters")
         params_layout = QFormLayout()
@@ -335,7 +313,7 @@ class MeasurementControlWidget(QWidget):
         
         # Background subtraction
         self.background_check = QCheckBox("Subtract Background")
-        self.background_check.setChecked(True)
+        self.background_check.setChecked(False)
         params_layout.addRow("", self.background_check)
         
         self.params_group.setLayout(params_layout)
@@ -376,31 +354,10 @@ class MeasurementControlWidget(QWidget):
         
         self.setLayout(layout)
         
-        # Connect radio button changes
-        self.single_radio.toggled.connect(self.update_controls)
-        self.continuous_radio.toggled.connect(self.update_controls)
-        self.kinetic_radio.toggled.connect(self.update_controls)
-        
-        # Update controls initial state
-        self.update_controls()
-        
-        # Timer for kinetic progress
+        # Timer for progress
         self.progress_timer = QTimer()
         self.progress_timer.timeout.connect(self.update_progress)
         self.start_time = 0
-        
-    def update_controls(self):
-        """Update controls based on selected measurement type."""
-        # Enable/disable parameters based on measurement type
-        if self.single_radio.isChecked():
-            self.interval_spin.setEnabled(False)
-            self.duration_spin.setEnabled(False)
-        elif self.continuous_radio.isChecked():
-            self.interval_spin.setEnabled(True)
-            self.duration_spin.setEnabled(False)
-        elif self.kinetic_radio.isChecked():
-            self.interval_spin.setEnabled(True)
-            self.duration_spin.setEnabled(True)
     
     def set_nephelometer(self, nephelometer: Optional[Nephelometer]):
         """Set the nephelometer instance."""
@@ -408,7 +365,7 @@ class MeasurementControlWidget(QWidget):
         self.start_button.setEnabled(nephelometer is not None)
         
     def start_measurement(self):
-        """Start a measurement based on the selected type."""
+        """Start a measurement."""
         if not self.nephelometer:
             self.measurement_error.emit("Nephelometer not connected")
             return
@@ -417,73 +374,34 @@ class MeasurementControlWidget(QWidget):
             # Update UI state
             self.start_button.setEnabled(False)
             self.stop_button.setEnabled(True)
-            self.measurement_group.setEnabled(False)
             self.params_group.setEnabled(False)
             
             # Get parameters
             subtract_background = self.background_check.isChecked()
+            interval = self.interval_spin.value()
+            duration = self.duration_spin.value()
+            self.status_label.setText(f"Running measurement for {duration}s...")
             
-            if self.single_radio.isChecked():
-                # Single measurement
-                self.status_label.setText("Taking single measurement...")
+            # Start progress tracking
+            self.progress_bar.setValue(0)
+            self.start_time = time.time()
+            self.progress_timer.start(100)  # Update every 100ms
+            
+            # Create and start measurement thread
+            self.measurement_thread = ContinuousMeasurementThread(
+                self.nephelometer, interval, duration, subtract_background
+            )
                 
-                # Take measurement directly
-                measurement = self.nephelometer.take_single_measurement(subtract_background=subtract_background)
-                
-                # Process the measurement to add ratios
-                processed = signal_processor.calculate_ratios(measurement)
-                
-                # Emit the data
-                self.data_acquired.emit(processed)
-                
-                # Update UI
-                self.status_label.setText("Measurement complete")
-                self.start_button.setEnabled(True)
-                self.stop_button.setEnabled(False)
-                self.measurement_group.setEnabled(True)
-                self.params_group.setEnabled(True)
-                
-                # Emit signal
-                self.measurement_started.emit()
-                self.measurement_stopped.emit()
-                
-            else:
-                # Continuous or kinetic measurement
-                interval = self.interval_spin.value()
-                
-                if self.kinetic_radio.isChecked():
-                    # Kinetic measurement
-                    duration = self.duration_spin.value()
-                    self.status_label.setText(f"Running kinetic measurement for {duration}s...")
-                    
-                    # Start progress tracking
-                    self.progress_bar.setValue(0)
-                    self.start_time = time.time()
-                    self.progress_timer.start(100)  # Update every 100ms
-                    
-                    # Create and start measurement thread
-                    self.measurement_thread = ContinuousMeasurementThread(
-                        self.nephelometer, interval, duration, subtract_background
-                    )
-                else:
-                    # Continuous measurement
-                    self.status_label.setText(f"Running continuous measurement...")
-                    
-                    # Create and start measurement thread
-                    self.measurement_thread = ContinuousMeasurementThread(
-                        self.nephelometer, interval, subtract_background=subtract_background
-                    )
-                
-                # Connect signals
-                self.measurement_thread.measurement_acquired.connect(self.handle_measurement)
-                self.measurement_thread.measurement_error.connect(self.handle_error)
-                self.measurement_thread.measurement_completed.connect(self.measurement_completed)
-                
-                # Start the thread
-                self.measurement_thread.start()
-                
-                # Emit signal
-                self.measurement_started.emit()
+            # Connect signals
+            self.measurement_thread.measurement_acquired.connect(self.handle_measurement)
+            self.measurement_thread.measurement_error.connect(self.handle_error)
+            self.measurement_thread.measurement_completed.connect(self.measurement_completed)
+            
+            # Start the thread
+            self.measurement_thread.start()
+            
+            # Emit signal
+            self.measurement_started.emit()
                 
         except Exception as e:
             logger.error(f"Error starting measurement: {str(e)}")
@@ -552,14 +470,14 @@ class MeasurementControlWidget(QWidget):
         """Reset the UI state after measurement."""
         self.start_button.setEnabled(self.nephelometer is not None)
         self.stop_button.setEnabled(False)
-        self.measurement_group.setEnabled(True)
+        # self.measurement_group.setEnabled(True)
         self.params_group.setEnabled(True)
         self.progress_timer.stop()
-        self.update_controls()
+        # self.update_controls()
     
     def update_progress(self):
         """Update the progress bar for kinetic measurement."""
-        if self.kinetic_radio.isChecked() and self.start_time > 0:
+        if self.start_time > 0:
             duration = self.duration_spin.value()
             elapsed = time.time() - self.start_time
             progress = min(100, int(elapsed / duration * 100))
