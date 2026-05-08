@@ -107,49 +107,6 @@ class Nephelometer:
         """
         return self._sensor.set_config(config)
     
-    def take_background_reading(self) -> Dict[str, int]:
-        """
-        Take a background reading for baseline subtraction.
-        
-        Returns:
-            Dict[str, int]: Background reading values
-            
-        Raises:
-            NephelometerError: If reading fails
-        """
-        logger.info("Taking background reading")
-        
-        with self._measurement_lock:
-            try:
-                # Ensure LED is on
-                self._sensor.set_led(True)
-                
-                # Wait for light to stabilize
-                time.sleep(0.1)
-                
-                # Take multiple readings and average them
-                num_readings = 5
-                readings = []
-                
-                for _ in range(num_readings):
-                    reading = self._sensor.read_spectral_data()
-                    readings.append(reading)
-                    time.sleep(0.05)
-                
-                # Calculate average reading
-                background = {}
-                for channel in readings[0].keys():
-                    values = [r[channel] for r in readings]
-                    background[channel] = int(sum(values) / len(values))
-                
-                self._background_reading = background
-                logger.info("Background reading completed")
-                
-                return background
-                
-            except AS7341Error as e:
-                raise NephelometerError(f"Error taking background reading: {str(e)}")
-    
     def take_single_measurement(self, subtract_background: bool = True) -> Dict[str, Any]:
         """
         Take a single measurement.

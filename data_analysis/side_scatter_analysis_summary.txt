@@ -1,0 +1,48 @@
+=== Side Scatter Analysis Summary ===
+
+Total measurements: 8999
+Unique conditions: 11
+Unique bead types: 4
+Unique buffer types: 5
+Total features extracted: 242
+Spectral features: 224
+Ratio features: 218
+
+=== Condition Distribution ===
+salt_0_mg_per_mL: 1624
+salt_186.9_mg_per_mL: 1201
+salt_6.9_mg_per_mL: 1201
+salt_3.6_mg_per_mL: 1201
+salt_14.4_mg_per_mL: 1201
+salt_7.2_mg_per_mL: 1201
+CRP_0_ng_per_mL: 581
+salt_360_mg_per_mL: 423
+CRP_1000_ng_per_mL: 122
+CRP_100_ng_per_mL: 122
+CRP_10_ng_per_mL: 122
+
+=== Label Distribution ===
+salt_0_mg_per_mL: 1624
+salt_186.9_mg_per_mL: 1201
+salt_6.9_mg_per_mL: 1201
+salt_3.6_mg_per_mL: 1201
+salt_14.4_mg_per_mL: 1201
+salt_7.2_mg_per_mL: 1201
+CRP_0_ng_per_mL: 581
+salt_360_mg_per_mL: 423
+CRP_1000_ng_per_mL: 122
+CRP_100_ng_per_mL: 122
+CRP_10_ng_per_mL: 122
+
+=== Salt Concentration Distribution ===
+0.0 mg/mL: 2571
+186.9 mg/mL: 1201
+6.9 mg/mL: 1201
+3.6 mg/mL: 1201
+14.4 mg/mL: 1201
+7.2 mg/mL: 1201
+360.0 mg/mL: 423
+
+=== Has Salt Distribution ===
+True: 8052
+False: 947
